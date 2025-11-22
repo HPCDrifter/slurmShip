@@ -1,0 +1,183 @@
+services:
+  database:
+    build:
+      context: ./database
+      dockerfile: Dockerfile
+    platform: linux/x86_64
+    image: hpcdrifter/slurm.database:25.11.0
+    container_name: database
+    hostname: database
+    restart: always
+    volumes:
+      - ./home:/home/worker
+      - ./secret:/.secret
+      - db_data:/var/lib/mysql
+      - slurm_state:/var/lib/slurm
+      - munge_keys:/etc/munge
+    environment:
+      TZ: UTC
+      DBD_HOST: database
+      DBD_ADDR: 0.0.0.0
+      DBD_PORT: 6819
+      STORAGE_HOST: localhost
+      STORAGE_PORT: 3306
+      STORAGE_USER: slurm
+      STORAGE_PASS: password
+    networks:
+      - slurm
+    ports:
+      - "6819:6819"
+      - "3306:3306"
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  controller:
+    build:
+      context: ./controller
+      dockerfile: Dockerfile
+    platform: linux/x86_64
+    image: hpcdrifter/slurm.controller:25.11.0
+    container_name: controller
+    hostname: controller
+    restart: always
+    depends_on:
+      database:
+        condition: service_healthy
+    volumes:
+      - ./home:/home/worker
+      - ./secret:/.secret
+      - slurm_state:/var/lib/slurm
+      - slurm_ctld_state:/var/spool/slurm/ctld
+      - munge_keys:/etc/munge
+    environment:
+      TZ: UTC
+      USE_SLURMDBD: 'true'
+      CLUSTER_NAME: snowflake
+      CONTROL_MACHINE: controller
+      SLURMCTLD_PORT: 6817
+      SLURMD_PORT: 6818
+      ACCOUNTING_STORAGE_HOST: database
+      ACCOUNTING_STORAGE_PORT: 6819
+      PARTITION_NAME: docker
+    networks:
+      - slurm
+    ports:
+      - "6817:6817"
+      - "6818:6818"
+    healthcheck:
+      test: ["CMD", "scontrol", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 120s
+
+  login:
+    build:
+      context: ./login
+      dockerfile: Dockerfile
+    platform: linux/x86_64
+    image: hpcdrifter/slurm.login:25.11.0
+    container_name: login
+    hostname: login
+    restart: always
+    depends_on:
+      controller:
+        condition: service_healthy
+    volumes:
+      - ./home:/home/worker
+      - ./secret:/.secret
+      - slurm_state:/var/lib/slurm
+      - munge_keys:/etc/munge
+    environment:
+      TZ: UTC
+      CONTROL_MACHINE: controller
+      SLURMCTLD_PORT: 6817
+    networks:
+      - slurm
+    ports:
+      - "2223:22"
+    command: ["sleep", "infinity"]
+    healthcheck:
+      test: ["CMD", "bash", "-c", "command -v srun >/dev/null 2>&1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  worker01:
+    build:
+      context: ./worker
+      dockerfile: Dockerfile
+    platform: linux/x86_64
+    image: hpcdrifter/slurm.worker:25.11.0
+    container_name: worker01
+    hostname: worker01
+    restart: always
+    depends_on:
+      controller:
+        condition: service_healthy
+    volumes:
+      - ./home:/home/worker
+      - ./secret:/.secret
+      - slurm_state:/var/lib/slurm
+      - munge_keys:/etc/munge
+    environment:
+      TZ: UTC
+      SLURM_NODE_NAME: worker01
+      CONTROL_MACHINE: controller
+      SLURMCTLD_PORT: 6817
+      SLURMD_PORT: 6818
+    networks:
+      - slurm
+    healthcheck:
+      test: ["CMD", "pgrep", "-x", "slurmd"]
+      interval: 60s  # Increased interval
+      timeout: 15s   # Increased timeout
+      retries: 5     # More retries
+      start_period: 180s  # Longer startup period
+
+  worker02:
+    build:
+      context: ./worker
+      dockerfile: Dockerfile
+    platform: linux/x86_64
+    image: hpcdrifter/slurm.worker:25.11.0
+    container_name: worker02
+    hostname: worker02
+    restart: always
+    depends_on:
+      controller:
+        condition: service_healthy
+    volumes:
+      - ./home:/home/worker
+      - ./secret:/.secret
+      - slurm_state:/var/lib/slurm
+      - munge_keys:/etc/munge
+    environment:
+      TZ: UTC
+      SLURM_NODE_NAME: worker02
+      CONTROL_MACHINE: controller
+      SLURMCTLD_PORT: 6817
+      SLURMD_PORT: 6818
+    networks:
+      - slurm
+    healthcheck:
+      test: ["CMD", "pgrep", "-x", "slurmd"]
+      interval: 60s  # Increased interval
+      timeout: 15s   # Increased timeout
+      retries: 5     # More retries
+      start_period: 180s  # Longer startup period
+
+networks:
+  slurm:
+    driver: bridge
+
+volumes:
+  db_data:
+  slurm_state:
+  munge_keys:
+  slurm_ctld_state:
