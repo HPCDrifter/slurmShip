@@ -17,21 +17,6 @@ ENV SLURM_VERSION=${SLURM_VERSION} \
     WORKER_UID=${WORKER_UID} \
     TZ=${TZ}
 
-# # === Fix repo metadata (required on ARM64) ===
- RUN set -eux \
-     && sed -i 's/^metalink/#metalink/g' /etc/yum.repos.d/* \
-     && sed -i 's/^mirrorlist/#mirrorlist/g' /etc/yum.repos.d/* \
-     && sed -i 's/^#baseurl/baseurl/g' /etc/yum.repos.d/*
-
-# === Install CA tools & update trust ===
- RUN set -eux \
-     && dnf install -y ca-certificates \
-     && update-ca-trust force-enable
-
- # === Copy corporate CA (if exists in build context) ===
-COPY corp-ca.crt /etc/pki/ca-trust/source/anchors/corp-ca.crt
-RUN update-ca-trust extract
-
 # === Timezone & base update ===
 RUN set -eux \
     && dnf update -y \
