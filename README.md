@@ -1,6 +1,19 @@
 # slurmShip
 
+
+slurmShip is a Docker-compose based demonstration of a small Slurm cluster (Slurm 25.11.0). It provides container images and orchestration for a minimal cluster consisting of:
+
+- `database` (slurmdbd backend)
+- `controller` (slurmctld)
+- `worker01`, `worker02` (slurmd nodes)
+- `login` (user login node for job submission)
+
+The repository includes local RPMs for an offline, reproducible build and a set of entrypoint scripts to wire up munge, SSH keys, and Slurm configuration between containers.
+
+This README explains how to build, run, and verify the cluster, plus some troubleshooting tips.
+
 # Architecture Diagram 
+
 
 ```
 User
@@ -41,17 +54,6 @@ User
   |  MariaDB :3306  |
   +-----------------+
 ```
-
-slurmShip is a Docker-compose based demonstration of a small Slurm cluster (Slurm 25.11.0). It provides container images and orchestration for a minimal cluster consisting of:
-
-- `database` (slurmdbd backend)
-- `controller` (slurmctld)
-- `worker01`, `worker02` (slurmd nodes)
-- `login` (user login node for job submission)
-
-The repository includes local RPMs for an offline, reproducible build and a set of entrypoint scripts to wire up munge, SSH keys, and Slurm configuration between containers.
-
-This README explains how to build, run, and verify the cluster, plus some troubleshooting tips.
 
 ## INFO
 - System Architecture: x86_64
