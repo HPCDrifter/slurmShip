@@ -1,5 +1,47 @@
 # slurmShip
 
+# Architecture Diagram 
+
+```
+User
+  |
+  | SSH :22
+  v
++--------+                    Volumes: munge_keys, slurm_state, db_data
+| Login  |<------------------------------------+
+|  Node  |                                     |
++--------+                                     |
+  |                                            |
+  | Slurm commands (srun, sbatch, sinfo)       |
+  | to slurmctld :6817                         |
+  v                                            |
++----------------+                             |
+|  Controller    |                             |
+| (slurmctld)    |<--------+                   |
+|     :6817      |         |                   |
++----------------+         |                   |
+   |         |             |                   |
+   | Job dispatch to       |                   |
+   | slurmd :6818          |                   |
+   v         v             |                   |
++--------+ +--------+      |                   |
+|Worker01| |Worker02|      |                   |
+|(slurmd)|(slurmd)         |                   |
+| :6818  | :6818  |       |                   |
++--------+ +--------+      |                   |
+                           |                   |
+      +--------------------+-------------------+
+      |
+      | Accounting (slurmdbd :6819)
+      |
+  +-----------------+
+  |   Database      |
+  | (slurmdbd)      |
+  |  :6819          |
+  |  MariaDB :3306  |
+  +-----------------+
+```
+
 slurmShip is a Docker-compose based demonstration of a small Slurm cluster (Slurm 25.11.0). It provides container images and orchestration for a minimal cluster consisting of:
 
 - `database` (slurmdbd backend)
